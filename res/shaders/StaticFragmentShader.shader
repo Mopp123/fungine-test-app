@@ -44,4 +44,5 @@ void main(void)
 	vec4 specular = vec4(directionalLight_color, 1) * specularFactor * texColor_specular;
 
 	outColor = (ambient + diffuse + specular);
+	if (outColor.a < 0.5) discard;
 }

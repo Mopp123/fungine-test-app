@@ -17,7 +17,7 @@ CameraController::CameraController(Entity* cameraToControl)
 
 void CameraController::update()
 {
-	float speed = 0.01f;
+	float speed = 0.5f;
 	float rotationSpeed = 0.003f;
 
 	float forward = 0.0f;

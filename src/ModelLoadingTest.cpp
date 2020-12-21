@@ -1,6 +1,6 @@
 
-#include <glew.h>
-#include <glfw3.h>
+#include <GLEW/glew.h>
+#include <GLFW/glfw3.h>
 #include "core/Program.h"
 #include "utils/myMathLib/MyMathLib.h"
 #include "core/Common.h"
@@ -18,6 +18,7 @@
 #include "components/rendering/Camera.h"
 #include "components/rendering/lighting/Lights.h"
 #include "components/rendering/renderers/Renderer.h"
+#include "components/rendering/renderers/TerrainRenderer.h"
 
 #include "utils/modelLoading/ModelLoading.h"
 
@@ -42,15 +43,129 @@ using namespace rendering;
 using namespace entities;
 using namespace graphics;
 using namespace entities;
-using namespace modelLoading;
 
 int main(int argc, const char** argv)
 {
-	Program program;
+	Program program("FunGINe engine demo", 1024, 768);
 
 	// Texture creation
 	ImageData* imgDat = ImageData::load_image("res/testTexture.png");
 	Texture* texture = Texture::create_texture(imgDat, imgDat->getWidth(), imgDat->getHeight());
+
+	// Load all terrain textures
+	ImageData* imgDat_blendmap = ImageData::load_image("res/IslandsBlendmap.png");
+	
+	ImageData* imgDat_dirt_diffuse = ImageData::load_image("res/textures/desert_mud_d.jpg");
+	ImageData* imgDat_dirt_normal = ImageData::load_image("res/textures/desert_mud_n.jpg");
+
+	ImageData* imgDat_grass1_diffuse = ImageData::load_image("res/textures/moss_ground_d.jpg");
+	ImageData* imgDat_grass2_diffuse = ImageData::load_image("res/textures/moss_plants_d.jpg");
+	ImageData* imgDat_grass_specular = ImageData::load_image("res/textures/moss_plants_s.jpg");
+	ImageData* imgDat_grass_normal = ImageData::load_image("res/textures/moss_plants_n.jpg");
+
+	ImageData* imgDat_cliff_diffuse = ImageData::load_image("res/textures/jungle_mntn2_d.jpg");
+	ImageData* imgDat_cliff_specular = ImageData::load_image("res/textures/jungle_mntn2_h.jpg");
+	ImageData* imgDat_cliff_normal = ImageData::load_image("res/textures/jungle_mntn2_n.jpg");
+
+	Texture* texture_blendmap = Texture::create_texture(imgDat_blendmap);
+	
+	Texture* texture_dirt_diffuse = Texture::create_texture(imgDat_dirt_diffuse);
+	Texture* texture_dirt_normal = Texture::create_texture(imgDat_dirt_normal);
+
+	Texture* texture_grass1_diffuse = Texture::create_texture(imgDat_grass1_diffuse);
+	Texture* texture_grass2_diffuse = Texture::create_texture(imgDat_grass2_diffuse);
+
+	Texture* texture_grass_specular = Texture::create_texture(imgDat_grass_specular);
+	Texture* texture_grass_normal = Texture::create_texture(imgDat_grass_normal);
+
+	Texture* texture_cliff_diffuse = Texture::create_texture(imgDat_cliff_diffuse);
+	Texture* texture_cliff_specular = Texture::create_texture(imgDat_cliff_specular);
+	Texture* texture_cliff_normal = Texture::create_texture(imgDat_cliff_normal);
+
+	// Create shader for terrain rendering
+	ShaderStage* terrainVertexShader = ShaderStage::create_shader_stage("res/shaders/TerrainVertexShader.shader", ShaderStageType::VertexShader);
+	ShaderStage* terrainFragmentShader = ShaderStage::create_shader_stage("res/shaders/TerrainFragmentShader.shader", ShaderStageType::PixelShader);
+	ShaderProgram* terrainShader = ShaderProgram::create_shader_program("TerrainShader", terrainVertexShader, terrainFragmentShader);
+
+	// Create shader for mesh rendering
+	ShaderStage* meshVertexShader = ShaderStage::create_shader_stage("res/shaders/StaticVertexShader.shader", ShaderStageType::VertexShader);
+	ShaderStage* meshFragmentShader = ShaderStage::create_shader_stage("res/shaders/StaticFragmentShader.shader", ShaderStageType::PixelShader);
+	ShaderProgram* meshShader = ShaderProgram::create_shader_program("MeshShader", meshVertexShader, meshFragmentShader);
+
+
+	std::shared_ptr<Material> terrainMaterial = Material::create_material__default3D(
+		terrainShader,
+		{
+			{"texture_blendmap", texture_blendmap},
+
+			{"texture_black_diffuse", texture_dirt_diffuse },	{"texture_black_specular", texture_dirt_diffuse },	{"texture_black_normal", texture_dirt_normal },
+			{"texture_red_diffuse", texture_grass1_diffuse },	{"texture_red_specular", texture_grass_specular },	{"texture_red_normal", texture_grass_normal },
+			{"texture_green_diffuse", texture_grass2_diffuse }, {"texture_green_specular", texture_grass_specular },{"texture_green_normal", texture_grass_normal },
+			{"texture_blue_diffuse", texture_cliff_diffuse },	{"texture_blue_specular", texture_cliff_specular },	{"texture_blue_normal", texture_cliff_normal }
+		}
+	);
+
+	// Load terrain model
+	std::vector<std::shared_ptr<Mesh>> terrainMeshes;
+	std::vector<Texture*> terrainMesh_textures;
+	std::vector<std::shared_ptr<Material>> terrainMesh_materials;
+
+	modelLoading::load_model(
+		"res/Islands.fbx",
+		terrainMeshes, terrainMesh_textures, terrainMesh_materials,
+		modelLoading::ModelLoading_PostProcessFlags::JoinIdenticalVertices |
+		modelLoading::ModelLoading_PostProcessFlags::Triangulate |
+		modelLoading::ModelLoading_PostProcessFlags::FlipUVs |
+		modelLoading::ModelLoading_PostProcessFlags::CalcTangentSpace,
+		true
+	);
+	// Find the actual islands mesh from all the meshes
+	std::shared_ptr<Mesh>& islandsMesh = terrainMeshes[0];
+	for (std::shared_ptr<Mesh>& m : terrainMeshes)
+	{
+		printf("mesh name: %s\n", m->getName().c_str());
+		if (m->getName() == "Islands")
+		{
+			islandsMesh = m;
+			break;
+		}
+	}
+
+	// Create renderers
+	std::shared_ptr<TerrainRenderer> terrainRenderer = std::make_shared<TerrainRenderer>();
+	std::shared_ptr<Renderer> meshRenderer = std::make_shared<Renderer>();
+
+	// Create terrain entity
+	Entity* terrainEntity = new Entity;
+	float terrainScale = 0.05f;
+	std::shared_ptr<Transform> component_terrainTransform = std::make_shared<Transform>(mml::Vector3(0, 0, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(terrainScale, terrainScale, terrainScale));
+	terrainEntity->addComponent(component_terrainTransform);
+
+	terrainEntity->addComponent(terrainMaterial);
+	terrainEntity->addComponent(islandsMesh);
+
+	terrainEntity->addComponent(terrainRenderer);
+
+	// Create tree entities
+	std::shared_ptr<Material> treeMaterial = terrainMesh_materials[1];
+	treeMaterial->setShader(meshShader);
+
+	for (int i = 0; i < terrainMeshes.size(); ++i)
+	{
+		if (terrainMeshes[i]->getName() == "Islands")
+			continue;
+
+		Entity* treeEntity = new Entity;
+		float treeScale = terrainScale;
+		std::shared_ptr<Transform> component_treeTransform = std::make_shared<Transform>(mml::Vector3(0, 0, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(treeScale, treeScale, treeScale));
+		treeEntity->addComponent(component_treeTransform);
+
+		treeEntity->addComponent(treeMaterial);
+		treeEntity->addComponent(terrainMeshes[i]);
+
+		treeEntity->addComponent(meshRenderer);
+	}
+
 
 	// Shader creation
 	ShaderStage* vertexShader = ShaderStage::create_shader_stage("res/shaders/StaticVertexShader.shader", ShaderStageType::VertexShader);
@@ -74,40 +189,6 @@ int main(int argc, const char** argv)
 	float dirLight_pitch = 1.57079633f * 0.5f;
 	float dirLight_yaw = 0.0f;
 
-	// Testing model loading
-	std::vector<std::shared_ptr<Mesh>> meshes;
-	std::vector<Texture*> mesh_textures;
-	std::vector<std::shared_ptr<Material>> mesh_materials;
-
-	load_model(
-		"res/Islands.fbx", 
-		meshes, mesh_textures, mesh_materials,
-		ModelLoading_PostProcessFlags::JoinIdenticalVertices | 
-		ModelLoading_PostProcessFlags::Triangulate | 
-		ModelLoading_PostProcessFlags::FlipUVs |
-		ModelLoading_PostProcessFlags::CalcTangentSpace,
-		true
-	);
-
-	std::vector<Entity*> allEntities;
-	for (int i = 0; i < meshes.size(); ++i)
-	{
-		// Testing entity creation
-		Entity* entity = new Entity;
-		// Test entity components
-		std::shared_ptr<Transform> component_entityTransform = std::make_shared<Transform>(mml::Vector3(0, 0, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(1, 1, 1));
-		component_entityTransform->setPosition({ 0,0,-30 });
-		component_entityTransform->setScale({ 30,30,30 });
-		component_entityTransform->setRotation({ { 1,0,0 }, -1.57079633f });
-		entity->addComponent(component_entityTransform);
-
-		std::shared_ptr<Material> material = mesh_materials[i];
-		material->setShader(shaderProgram);
-		entity->addComponent(material);
-		entity->addComponent(meshes[i]);
-
-		entity->addComponent(std::make_shared<Renderer>());
-	}
 
 	// get handle to graphics' renderer commands
 	RendererCommands* const rendererCommands = Graphics::get_renderer_commands();
@@ -118,7 +199,7 @@ int main(int argc, const char** argv)
 		rendererCommands->clear();
 
 		// To control light direction
-		float dirLightRotSpeed = 0.0008f;
+		float dirLightRotSpeed = 0.01f;
 		float y = 0.0f;
 		float p = 0.0f;
 
