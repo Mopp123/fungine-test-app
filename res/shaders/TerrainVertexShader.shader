@@ -17,6 +17,8 @@ out vec2 var_uv;
 out vec3 var_fragPos;
 out vec3 var_toCameraVec;
 
+out vec3 var_normal;
+
 out vec3 var_dirLightDirection;
 out mat3 var_tbnMatrix;
 
@@ -30,6 +32,8 @@ void main(void)
 	vec3 t = normalize((transformationMatrix * vec4(tangent, 0.0)).xyz);
 	vec3 n = normalize((transformationMatrix * vec4(normal, 0.0)).xyz);
 	vec3 b = normalize(cross(n, t));
+
+	var_normal = n;
 
 	// We calc all lighting in tangent space so we need to invert our tbn matrix.
 	var_tbnMatrix = transpose(mat3(t, b, n)); // *transposing orthogonal matrix is the same as inverting it

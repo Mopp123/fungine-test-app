@@ -2,6 +2,7 @@
 #include "CameraController.h"
 #include "components/common/Transform.h"
 #include "core/window/input/InputHandler.h"
+#include "utils/Time.h"
 
 
 using namespace fungine;
@@ -17,7 +18,7 @@ CameraController::CameraController(Entity* cameraToControl)
 
 void CameraController::update()
 {
-	float speed = 0.5f;
+	float speed = 20.0f * Time::get_delta_time();
 	float rotationSpeed = 0.003f;
 
 	float forward = 0.0f;

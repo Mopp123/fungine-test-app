@@ -10,6 +10,7 @@ uniform mat4 viewMatrix;
 uniform mat4 transformationMatrix;
 
 uniform vec3 directionalLight_direction;
+//uniform float time;
 
 uniform vec3 cameraPos;
 

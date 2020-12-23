@@ -29,8 +29,8 @@ uniform sampler2D texture_blue_normal;
 uniform vec3 directionalLight_ambientColor;
 uniform vec3 directionalLight_color;
 
-const float specularStrength = 1.0;
-const float specularShininess = 64.0;
+const float specularStrength = 0.5;
+const float specularShininess = 32.0;
 
 layout(location = 0) out vec4 outColor;
 
