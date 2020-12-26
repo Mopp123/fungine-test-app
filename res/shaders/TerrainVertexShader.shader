@@ -13,6 +13,9 @@ uniform vec3 directionalLight_direction;
 
 uniform vec3 cameraPos;
 
+uniform mat4 shadowProjMat;
+uniform mat4 shadowViewMat;
+
 out vec2 var_uv;
 out vec3 var_fragPos;
 out vec3 var_toCameraVec;
@@ -21,6 +24,8 @@ out vec3 var_normal;
 
 out vec3 var_dirLightDirection;
 out mat3 var_tbnMatrix;
+
+out vec4 var_shadowCoord;
 
 void main(void)
 {
@@ -34,7 +39,7 @@ void main(void)
 	vec3 b = normalize(cross(n, t));
 
 	var_normal = n;
-
+	
 	// We calc all lighting in tangent space so we need to invert our tbn matrix.
 	var_tbnMatrix = transpose(mat3(t, b, n)); // *transposing orthogonal matrix is the same as inverting it
 
@@ -42,4 +47,6 @@ void main(void)
 	var_fragPos =			var_tbnMatrix * vertex_worldSpace.xyz;
 	var_toCameraVec =		var_tbnMatrix * normalize(cameraPos - vertex_worldSpace.xyz);
 	var_dirLightDirection = var_tbnMatrix * normalize(directionalLight_direction);
+
+	var_shadowCoord = 0.5 + 0.5 * shadowProjMat * shadowViewMat * vertex_worldSpace;
 }

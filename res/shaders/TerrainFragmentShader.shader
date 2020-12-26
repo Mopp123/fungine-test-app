@@ -6,6 +6,7 @@ in vec3 var_normal;
 in vec3 var_toCameraVec;
 in vec3 var_dirLightDirection;
 in mat3 var_tbnMatrix;
+in vec4 var_shadowCoord;
 
 uniform sampler2D texture_blendmap;
 
@@ -24,6 +25,8 @@ uniform sampler2D texture_green_normal;
 uniform sampler2D texture_blue_diffuse;
 uniform sampler2D texture_blue_specular;
 uniform sampler2D texture_blue_normal;
+
+uniform sampler2D texture_shadowmap;
 
 
 uniform vec3 directionalLight_ambientColor;
@@ -77,15 +80,47 @@ void main(void)
 
 	vec3 toLightVec = normalize(-var_dirLightDirection); // not sure is this correct for this directional light?
 	vec3 toCameraVec = normalize(var_toCameraVec);
-	float diffuseFactor = max(dot(toLightVec, normal), 0.0);
+	float dopt_normToLight = dot(toLightVec, normal);
+	float diffuseFactor = max(dopt_normToLight, 0.0);
+
+	// JUST TESTING SHADOWS!!
+	/*float objNearestShadow = texture(texture_shadowmap, var_shadowCoord.xy).r;
+	float shadow = 0.0;
+	float bias = max(0.05 * (1.0 - dopt_normToLight), 0.005);
+	if (objNearestShadow < var_shadowCoord.z - bias)
+	{
+		shadow = 1.0;
+		if (var_shadowCoord.z > 1.0)
+			shadow = 0.0;
+	}*/
+	float shadow = 0.0;
+	float bias = 0.005;//max(0.01 * (1.0 - dot(toLightVec, var_normal)), 0.005);
+	// shadowmap pcf
+	int pcfCount = 1;
+	int texelCount = (2 * pcfCount + 1) * (2 * pcfCount + 1);
+	float textureSize = 1024;
+	vec2 texelSize = 1.0 / textureSize(texture_shadowmap, 0);
+	for (int x = -pcfCount; x <= pcfCount; x++)
+	{
+		for (int y = -pcfCount; y <= pcfCount; y++)
+		{
+			float d = texture(texture_shadowmap, var_shadowCoord.xy + vec2(x, y) * texelSize).r;
+			shadow += var_shadowCoord.z - bias > d ? 1.0 : 0.0;
+		}
+	}
+	shadow /= texelCount;
+	// that weird far plane shadow
+	if (var_shadowCoord.z > 1.0)
+		shadow = 0.0;
 
 	// *Note: even if you thought these 2 inputted vectors for reflect() were unit vectors, this may not be true, since floating point issues..
 	vec3 reflectedLightVec = normalize(reflect(var_dirLightDirection, normal));
 	float specularFactor = specularStrength * pow(max(dot(reflectedLightVec, toCameraVec), 0.0), specularShininess);
 
+
 	vec4 ambient =	vec4(directionalLight_ambientColor, 1) * texColor_diffuse;
 	vec4 diffuse =	vec4(directionalLight_color, 1) * diffuseFactor * texColor_diffuse;
 	vec4 specular = vec4(directionalLight_color, 1) * specularFactor * texColor_specular;
 
-	outColor = (ambient + diffuse + specular);
+	outColor = (ambient + diffuse + specular) - vec4(shadow, shadow, shadow, 0.0);
 }

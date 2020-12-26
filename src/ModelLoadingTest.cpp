@@ -39,6 +39,17 @@
 
 	*->TEMP = very temporary testing thing that should be quickly removed/changed to more final form.
 	*->TODO = ..to doo
+	
+
+
+
+
+	NEXT UP:
+
+		* remove framebuffer's depth texture attachment's border coloring hack!
+		* figure out why dir light view matrix is inverted..
+		* improve rendering system (shadowmap render pass things..)
+		* shadowmap pcf
 */
 
 using namespace fungine;
@@ -87,17 +98,22 @@ static void plant_vegetation(Terrain* terrain, ImageData* blendmap, std::vector<
 	}
 }
 
+enum class rFlags : unsigned int
+{
+	renderMaterial = 0x1,
+	renderGeometry = 0x2
+};
+
 int main(int argc, const char** argv)
 {
+	
 	Program program("FunGINe engine demo", 1024, 768, false);
 
 	// Create perspective projection matrix
 	float aspectRatio = (float)(Window::get_width()) / (float)(Window::get_height());
-	mml::Matrix4 initialProjMat(1.0f);
-	mml::create_perspective_projection_matrix(initialProjMat, 70.0f, aspectRatio, 0.1f, 500.0f);
-
 	// Create camera entity
-	Entity* cameraEntity = commonEntityFactory::create_entity__Camera({ 0,3,8 }, { {0,1,0}, 0 }, initialProjMat);
+	Entity* cameraEntity = commonEntityFactory::create_entity__Camera({ 0,3,8 }, { {0,1,0}, 0 });
+	cameraEntity->getComponent<Camera>()->setPerspectiveProjection(70.0f, aspectRatio, 0.1f, 1000.0f);
 	CameraController camController(cameraEntity);
 
 
@@ -160,7 +176,7 @@ int main(int argc, const char** argv)
 	std::vector<Texture*> treeMeshes_textures;
 	std::vector<std::shared_ptr<Material>> treeMeshes_materials;
 
-	const unsigned int treeInstanceCount = 500;
+	const unsigned int treeInstanceCount = 1200;
 	modelLoading::load_model(
 		"res/PalmTree_straight.fbx",
 		treeMeshes, treeMeshes_textures, treeMeshes_materials,
@@ -177,7 +193,7 @@ int main(int argc, const char** argv)
 	std::vector<Texture*> grassMeshes_textures;
 	std::vector<std::shared_ptr<Material>> grassMeshes_materials;
 
-	const unsigned int grassInstanceCount = 1000;
+	const unsigned int grassInstanceCount = 80000;
 	modelLoading::load_model(
 		"res/Grass.fbx",
 		grassMeshes, grassMeshes_textures, grassMeshes_materials,
@@ -190,9 +206,11 @@ int main(int argc, const char** argv)
 
 
 	// Create renderers
-	std::shared_ptr<TerrainRenderer> terrainRenderer = std::make_shared<TerrainRenderer>();
-	std::shared_ptr<NatureRenderer> natureRenderer = std::make_shared<NatureRenderer>();
-	std::shared_ptr<Renderer> meshRenderer = std::make_shared<Renderer>();
+	std::shared_ptr<TerrainRenderer> terrainRenderer = std::make_shared<TerrainRenderer>(false);
+	std::shared_ptr<NatureRenderer> natureRenderer = std::make_shared<NatureRenderer>(true);
+	std::shared_ptr<NatureRenderer> grassRenderer = std::make_shared<NatureRenderer>(false);
+
+	std::shared_ptr<Renderer> meshRenderer = std::make_shared<Renderer>(false);
 
 	// Generate terrain entity
 	ImageData* heightmapImage = ImageData::load_image("res/heightmapTest.png");
@@ -253,7 +271,7 @@ int main(int argc, const char** argv)
 		grassEntity->addComponent(grassMaterial);
 
 		grassEntity->addComponent(grassMeshes[0]);
-		grassEntity->addComponent(natureRenderer);
+		grassEntity->addComponent(grassRenderer);
 
 		vegetationEntities.push_back(grassEntity);
 	}
@@ -268,17 +286,17 @@ int main(int argc, const char** argv)
 	ShaderProgram* shaderProgram = ShaderProgram::create_shader_program("SimpleStaticShader", vertexShader, pixelShader);
 
 	// Create directional light entity
-	mml::Vector3 dirLightDirection(0, -1, -1);
-	dirLightDirection.normalize();
 	unsigned int shadowmapWidth = 1024;
-	unsigned int shadowmapHeight = 768;
-	Entity* dirLightEntity = commonEntityFactory::create_entity__DirectionalLight(
-		dirLightDirection, { 1,1,1 }, { 0,0,0 }, 
-		shadowmapWidth, shadowmapHeight
-	);
+	unsigned int shadowmapHeight = 1024;
 	float dirLight_pitch = 1.57079633f * 0.5f;
 	float dirLight_yaw = 0.0f;
+	mml::Quaternion dirLightRotation = mml::Quaternion({ 0,1,0 }, dirLight_yaw) * mml::Quaternion({ 1,0,0 }, dirLight_pitch);
 
+	Entity* dirLightEntity = commonEntityFactory::create_entity__DirectionalLight(
+		dirLightRotation, { 1,1,1 }, { 0,0,0 },
+		shadowmapWidth, shadowmapHeight
+	);
+	
 
 	// get handle to graphics' renderer commands
 	RendererCommands* const rendererCommands = Graphics::get_renderer_commands();
@@ -287,7 +305,7 @@ int main(int argc, const char** argv)
 
 	// Create a quad on screen to debug shadowmap
 	float shadowmapQuadSize = 0.4f;
-	Entity* shadowmapDebugEntity = commonEntityFactory::create_entity__Plane({ -1.0f + shadowmapQuadSize,1.0f - shadowmapQuadSize,0 }, { {0,1,0}, 0 }, { shadowmapQuadSize,shadowmapQuadSize,shadowmapQuadSize });
+	Entity* shadowmapDebugEntity = commonEntityFactory::create_entity__Plane({ -1.0f + shadowmapQuadSize, 0.5f,0 }, { {0,1,0}, 0 }, { shadowmapQuadSize,shadowmapQuadSize,shadowmapQuadSize });
 	std::shared_ptr<Transform> shadowmapDebugTransform = shadowmapDebugEntity->getComponent<Transform>();
 	std::shared_ptr<Mesh> shadowmapDebugMesh = shadowmapDebugEntity->getComponent<Mesh>();
 	
@@ -306,33 +324,22 @@ int main(int argc, const char** argv)
 		
 		// To control light direction
 		float dirLightRotSpeed = 0.01f;
-		float y = 0.0f;
-		float p = 0.0f;
+		
+		if (InputHandler::is_key_down(FUNGINE_KEY_LEFT)) dirLight_yaw -= dirLightRotSpeed;
+		if (InputHandler::is_key_down(FUNGINE_KEY_RIGHT)) dirLight_yaw += dirLightRotSpeed;
 
-		if (InputHandler::is_key_down(FUNGINE_KEY_LEFT)) y -= dirLightRotSpeed;
-		if (InputHandler::is_key_down(FUNGINE_KEY_RIGHT)) y += dirLightRotSpeed;
+		if (InputHandler::is_key_down(FUNGINE_KEY_UP)) dirLight_pitch += dirLightRotSpeed;
+		if (InputHandler::is_key_down(FUNGINE_KEY_DOWN)) dirLight_pitch -= dirLightRotSpeed;
 
-		if (InputHandler::is_key_down(FUNGINE_KEY_UP)) p += dirLightRotSpeed;
-		if (InputHandler::is_key_down(FUNGINE_KEY_DOWN)) p -= dirLightRotSpeed;
-
-		DirectionalLight* dirLightComponent = dirLightEntity->getComponent<DirectionalLight>().get();
-		mml::Vector3 currentDirection = dirLightComponent->getDirection();
-		currentDirection.normalize();
-
-		mml::Quaternion dirLightRot_pitch({ 1,0,0 }, p);
-		mml::Quaternion dirLightRot_yaw({ 0,1,0 }, y);
-		dirLightRot_pitch.normalize();
-		dirLightRot_yaw.normalize();
-
+		
+		mml::Quaternion dirLightRot_pitch({ 1,0,0 }, dirLight_pitch);
+		mml::Quaternion dirLightRot_yaw({ 0,1,0 }, dirLight_yaw);
+		
 		mml::Quaternion totalDirLightRotation = dirLightRot_yaw * dirLightRot_pitch;
 		totalDirLightRotation.normalize();
 
-		mml::Quaternion d(currentDirection.x, currentDirection.y, currentDirection.z, 0);
-
-		mml::Quaternion finalDirLightDirection = totalDirLightRotation * d * totalDirLightRotation.conjugate();
-		d.normalize();
-
-		dirLightComponent->setDirection({ finalDirLightDirection.x, finalDirLightDirection.y ,finalDirLightDirection.z });
+		std::shared_ptr<Transform> lightTransform = dirLightEntity->getComponent<Transform>();
+		lightTransform->setRotation(totalDirLightRotation);
 
 		camController.update();
 
