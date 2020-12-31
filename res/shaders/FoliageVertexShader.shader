@@ -19,18 +19,21 @@ uniform mat4 viewMatrix;
 uniform vec3 directionalLight_direction;
 uniform vec3 cameraPos;
 
-uniform float windMultiplier;
+uniform float m_windMultiplier;
 uniform float time;
 
+uniform mat4 shadowProjMat;
+uniform mat4 shadowViewMat;
+
 out vec2 var_uv;
-out vec3 var_normal;
-out vec3 var_toCameraVec;
-out vec3 var_dirLightDirection;
+out float var_diffuseFactor;
+out vec4 var_shadowCoord;
+
 
 void main(void)
 {
 	float windAnim = abs(time - windInitVal);
-	float weight = (position_modelSpace.y * position_modelSpace.y) * windMultiplier;
+	float weight = (position_modelSpace.y * position_modelSpace.y) * m_windMultiplier;
 	float windEffect_x = sin(windAnim) * weight;
 	float windEffect_z = cos(windAnim) * weight;
 	vec3 finalVertexPos = position_modelSpace;
@@ -42,8 +45,6 @@ void main(void)
 	gl_Position = projectionMatrix * viewMatrix * vertex_worldSpace;
 	
 	var_uv = uvCoord;
-	
-	var_normal =			(transformationMatrix * vec4(normal, 0.0)).xyz;
-	var_toCameraVec =		normalize(cameraPos - vertex_worldSpace.xyz);
-	var_dirLightDirection = normalize(directionalLight_direction);
+	var_diffuseFactor = max(dot(-directionalLight_direction, vec3(0, 1, 0)), 0.0);
+	var_shadowCoord = 0.5 + 0.5 * shadowProjMat * shadowViewMat * vertex_worldSpace;
 }

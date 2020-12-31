@@ -107,14 +107,26 @@ enum class rFlags : unsigned int
 int main(int argc, const char** argv)
 {
 	
-	Program program("FunGINe engine demo", 1024, 768, false);
+	Program program("FunGINe engine demo", 1920, 1080, false);
 
 	// Create perspective projection matrix
 	float aspectRatio = (float)(Window::get_width()) / (float)(Window::get_height());
 	// Create camera entity
 	Entity* cameraEntity = commonEntityFactory::create_entity__Camera({ 0,3,8 }, { {0,1,0}, 0 });
-	cameraEntity->getComponent<Camera>()->setPerspectiveProjection(70.0f, aspectRatio, 0.1f, 1000.0f);
+	cameraEntity->getComponent<Camera>()->setPerspectiveProjection(1.22173048f, aspectRatio, 0.1f, 1000.0f);
 	CameraController camController(cameraEntity);
+
+	// Create directional light entity
+	unsigned int shadowmapWidth = 1024;
+	unsigned int shadowmapHeight = 1024;
+	float dirLight_pitch = 1.57079633f * 0.5f;
+	float dirLight_yaw = 0.0f;
+	mml::Quaternion dirLightRotation = mml::Quaternion({ 0,1,0 }, dirLight_yaw) * mml::Quaternion({ 1,0,0 }, dirLight_pitch);
+
+	Entity* dirLightEntity = commonEntityFactory::create_entity__DirectionalLight(
+		dirLightRotation, { 1,1,1 }, { 0,0,0 },
+		shadowmapWidth, shadowmapHeight
+	);
 
 
 	// Texture creation
@@ -156,10 +168,14 @@ int main(int argc, const char** argv)
 	ShaderStage* terrainFragmentShader = ShaderStage::create_shader_stage("res/shaders/TerrainFragmentShader.shader", ShaderStageType::PixelShader);
 	ShaderProgram* terrainShader = ShaderProgram::create_shader_program("TerrainShader", terrainVertexShader, terrainFragmentShader);
 
-	// Create shader for tree rendering
-	ShaderStage* treeVertexShader = ShaderStage::create_shader_stage("res/shaders/TreeVertexShader.shader", ShaderStageType::VertexShader);
-	ShaderStage* treeFragmentShader = ShaderStage::create_shader_stage("res/shaders/TreeFragmentShader.shader", ShaderStageType::PixelShader);
+	// Create shaders for tree rendering
+	ShaderStage* treeVertexShader = ShaderStage::create_shader_stage("res/shaders/treeShaders/TreeVertexShader.shader", ShaderStageType::VertexShader);
+	ShaderStage* treeFragmentShader = ShaderStage::create_shader_stage("res/shaders/treeShaders/TreeFragmentShader.shader", ShaderStageType::PixelShader);
 	ShaderProgram* treeShader = ShaderProgram::create_shader_program("TreeShader", treeVertexShader, treeFragmentShader);
+	// Tree shadow shader
+	ShaderStage* treeShadowVertexShader = ShaderStage::create_shader_stage("res/shaders/treeShaders/TreeShadowVertexShader.shader", ShaderStageType::VertexShader);
+	ShaderStage* treeShadowFragmentShader = ShaderStage::create_shader_stage("res/shaders/treeShaders/TreeShadowFragmentShader.shader", ShaderStageType::PixelShader);
+	ShaderProgram* treeShadowShader = ShaderProgram::create_shader_program("TreeShadowShader", treeShadowVertexShader, treeShadowFragmentShader);
 
 	// Create shader for foliage/grass rendering
 	ShaderStage* foliageVertexShader = ShaderStage::create_shader_stage("res/shaders/FoliageVertexShader.shader", ShaderStageType::VertexShader);
@@ -176,7 +192,7 @@ int main(int argc, const char** argv)
 	std::vector<Texture*> treeMeshes_textures;
 	std::vector<std::shared_ptr<Material>> treeMeshes_materials;
 
-	const unsigned int treeInstanceCount = 1200;
+	const unsigned int treeInstanceCount = 1000;
 	modelLoading::load_model(
 		"res/PalmTree_straight.fbx",
 		treeMeshes, treeMeshes_textures, treeMeshes_materials,
@@ -193,7 +209,7 @@ int main(int argc, const char** argv)
 	std::vector<Texture*> grassMeshes_textures;
 	std::vector<std::shared_ptr<Material>> grassMeshes_materials;
 
-	const unsigned int grassInstanceCount = 80000;
+	const unsigned int grassInstanceCount = 50000;
 	modelLoading::load_model(
 		"res/Grass.fbx",
 		grassMeshes, grassMeshes_textures, grassMeshes_materials,
@@ -206,11 +222,10 @@ int main(int argc, const char** argv)
 
 
 	// Create renderers
-	std::shared_ptr<TerrainRenderer> terrainRenderer = std::make_shared<TerrainRenderer>(false);
-	std::shared_ptr<NatureRenderer> natureRenderer = std::make_shared<NatureRenderer>(true);
-	std::shared_ptr<NatureRenderer> grassRenderer = std::make_shared<NatureRenderer>(false);
+	std::shared_ptr<TerrainRenderer> terrainRenderer = std::make_shared<TerrainRenderer>();
+	std::shared_ptr<NatureRenderer> natureRenderer = std::make_shared<NatureRenderer>();
 
-	std::shared_ptr<Renderer> meshRenderer = std::make_shared<Renderer>(false);
+	std::shared_ptr<Renderer> meshRenderer = std::make_shared<Renderer>();
 
 	// Generate terrain entity
 	ImageData* heightmapImage = ImageData::load_image("res/heightmapTest.png");
@@ -231,9 +246,12 @@ int main(int argc, const char** argv)
 	// Create tree entities
 	std::shared_ptr<Material> treeMaterial = treeMeshes_materials[0];
 	treeMaterial->setShader(treeShader);
-	float treeWindMultiplier = 0.0000025f;
-	ShaderUniform<float> treeShader_windUniform("windMultiplier", &treeWindMultiplier);
-	treeMaterial->addUniform(treeShader_windUniform);
+	treeMaterial->setShadowShader(treeShadowShader);
+	
+	treeMaterial->setShaderUniform_Float({ "m_windMultiplier", ShaderDataType::Float, 0.000002f });
+	
+
+	//treeMeshes[0]->enableShadows(true);
 
 	for (int i = 0; i < treeInstanceCount; ++i)
 	{
@@ -256,9 +274,8 @@ int main(int argc, const char** argv)
 	std::shared_ptr<Material> grassMaterial = grassMeshes_materials[0];
 	grassMaterial->setTwoSided(true);
 	grassMaterial->setShader(foliageShader);
-	float foliageWindMultiplier = 0.001f;
-	ShaderUniform<float> foliageShader_windUniform("windMultiplier", &foliageWindMultiplier);
-	grassMaterial->addUniform(foliageShader_windUniform);
+	grassMaterial->setShaderUniform_Float({ "m_windMultiplier", ShaderDataType::Float, 0.001f });
+	grassMeshes[0]->enableShadows(false); // Don't render foliage to shadowmap
 
 	for (int i = 0; i < grassInstanceCount; ++i)
 	{
@@ -271,33 +288,13 @@ int main(int argc, const char** argv)
 		grassEntity->addComponent(grassMaterial);
 
 		grassEntity->addComponent(grassMeshes[0]);
-		grassEntity->addComponent(grassRenderer);
+		grassEntity->addComponent(natureRenderer);
 
 		vegetationEntities.push_back(grassEntity);
 	}
-
+	
 	plant_vegetation(terrain, imgDat_blendmap, vegetationEntities);
 	
-
-	// Shader creation
-	ShaderStage* vertexShader = ShaderStage::create_shader_stage("res/shaders/StaticVertexShader.shader", ShaderStageType::VertexShader);
-	ShaderStage* pixelShader = ShaderStage::create_shader_stage("res/shaders/StaticFragmentShader.shader", ShaderStageType::PixelShader);
-
-	ShaderProgram* shaderProgram = ShaderProgram::create_shader_program("SimpleStaticShader", vertexShader, pixelShader);
-
-	// Create directional light entity
-	unsigned int shadowmapWidth = 1024;
-	unsigned int shadowmapHeight = 1024;
-	float dirLight_pitch = 1.57079633f * 0.5f;
-	float dirLight_yaw = 0.0f;
-	mml::Quaternion dirLightRotation = mml::Quaternion({ 0,1,0 }, dirLight_yaw) * mml::Quaternion({ 1,0,0 }, dirLight_pitch);
-
-	Entity* dirLightEntity = commonEntityFactory::create_entity__DirectionalLight(
-		dirLightRotation, { 1,1,1 }, { 0,0,0 },
-		shadowmapWidth, shadowmapHeight
-	);
-	
-
 	// get handle to graphics' renderer commands
 	RendererCommands* const rendererCommands = Graphics::get_renderer_commands();
 	rendererCommands->setClearColor({ 0.25f,0.25f,0.25f,1 });
@@ -314,11 +311,10 @@ int main(int argc, const char** argv)
 	ShaderStage* guiFragmentShader = ShaderStage::create_shader_stage("res/shaders/guiShaders/GuiFragmentShader.shader", ShaderStageType::PixelShader);
 	ShaderProgram* guiShader = ShaderProgram::create_shader_program("GuiShader", guiVertexShader, guiFragmentShader);
 
-	Texture* shadowmapTexture = dirLightEntity->getComponent<DirectionalLight>()->getShadowCaster().getShadowmapTexture();
+	const Texture* shadowmapTexture = dirLightEntity->getComponent<DirectionalLight>()->getShadowCaster().getShadowmapTexture();
 
 	while (!program.isCloseRequested())
 	{
-		
 		if (InputHandler::is_key_down(FUNGINE_KEY_ESCAPE))
 			program.get_window()->close();
 		
@@ -356,7 +352,7 @@ int main(int argc, const char** argv)
 		Graphics::render();
 
 		// render shadow map into quad on screen for debugginh purposes..
-		guiShader->bind();
+		/*rendererCommands->bindShader(guiShader);
 		guiShader->setUniform("transformationMatrix", shadowmapDebugTransform->getTransformationMatrix());
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, shadowmapTexture->getID());
@@ -364,7 +360,7 @@ int main(int argc, const char** argv)
 		rendererCommands->drawIndices(shadowmapDebugMesh.get());
 		glBindTexture(GL_TEXTURE_2D, 0);
 		rendererCommands->unbindMesh(shadowmapDebugMesh.get());
-		guiShader->unbind();
+		rendererCommands->unbindShader();*/
 	}
 
 	return 0;
