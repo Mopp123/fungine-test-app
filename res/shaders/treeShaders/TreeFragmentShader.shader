@@ -15,6 +15,7 @@ uniform sampler2D texture_shadowmap;
 
 uniform vec3 directionalLight_ambientColor;
 uniform vec3 directionalLight_color;
+const float shadowStrength = 0.2;
 
 struct ShadowProperties
 {
@@ -115,7 +116,7 @@ void main(void)
 	
 
 	float bias = max(0.025 * 1.0 - dotp_normToLight, 0.005);
-	float shadow = calcShadow(bias);
+	float shadow = min(calcShadow(bias), shadowStrength);
 
 	// *Note: even if you thought these 2 inputted vectors for reflect() were unit vectors, this may not be true, since floating point issues..
 	vec3 reflectedLightVec = normalize(reflect(var_dirLightDirection, normal));

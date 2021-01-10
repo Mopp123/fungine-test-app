@@ -13,6 +13,6 @@ private:
 
 public:
 
-	CameraController(fungine::entities::Entity* cameraToControl);
+	CameraController(fungine::entities::Entity* cameraToControl, float camStartPitch, float camStartYaw);
 	void update();
 };

@@ -31,9 +31,11 @@ uniform sampler2D texture_shadowmap;
 
 uniform vec3 directionalLight_ambientColor;
 uniform vec3 directionalLight_color;
+const float shadowStrength = 0.6;
 
 const float specularStrength = 0.5;
 const float specularShininess = 32.0;
+
 
 struct ShadowProperties
 {
@@ -162,7 +164,7 @@ void main(void)
 
 	// Shadows
 	float bias = 0.005;//max(0.025 * (1.0 - dopt_normToLight), 0.005);
-	float shadow = calcShadow(bias);
+	float shadow = min(calcShadow(bias), shadowStrength);
 	
 	float diffuseFactor = max(dopt_normToLight - shadow, 0.0);
 	

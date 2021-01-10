@@ -35,21 +35,25 @@
 #include <cmath>
 
 /*
+	* Uses "Fungine" as static lib
+		(*but fungine uses assimp as dll so we need to have that..)
+*/
+
+
+
+/*
 	"Comment tags"( all of them starts with '*->' ):
 
 	*->TEMP = very temporary testing thing that should be quickly removed/changed to more final form.
 	*->TODO = ..to doo
 	
-
-
-
-
 	NEXT UP:
 
 		* remove framebuffer's depth texture attachment's border coloring hack!
 		* figure out why dir light view matrix is inverted..
-		* improve rendering system (shadowmap render pass things..)
+		* improve rendering system (shadowmaprenderpass things..)
 		* shadowmap pcf
+		* change constant material specular properties from shaders to uniforms
 */
 
 using namespace fungine;
@@ -60,7 +64,7 @@ using namespace entities;
 using namespace graphics;
 using namespace entities;
 
-
+// Used for planting vegetation..
 static bool get_valid_pixel(ImageData* blendmap, unsigned int px, unsigned int py)
 {
 	byte pixelRed = blendmap->getColorChannel(px, py, 0);
@@ -71,7 +75,7 @@ static bool get_valid_pixel(ImageData* blendmap, unsigned int px, unsigned int p
 		return false;
 }
 
-// randomizes a position from a map
+// randomizes a position from terrain blendmap for vegetation..
 static void plant_vegetation(Terrain* terrain, ImageData* blendmap, std::vector<Entity*>& entities)
 {
 	float terrainTileSize = terrain->getTileWidth();
@@ -98,40 +102,83 @@ static void plant_vegetation(Terrain* terrain, ImageData* blendmap, std::vector<
 	}
 }
 
-enum class rFlags : unsigned int
+// just quick way to read config file..
+void read_config(
+	const std::string& filename, 
+	unsigned int& out_shadowmapWidth, 
+	unsigned int& out_windowWidth, 
+	unsigned int& out_windowHeight, 
+	unsigned int& out_windowFullscreen,
+	unsigned int& out_vSync,
+
+	unsigned int& out_treeCount, 
+	unsigned int& out_grassCount
+)
 {
-	renderMaterial = 0x1,
-	renderGeometry = 0x2
-};
+	FILE* file = nullptr;
+	fopen_s(&file, filename.c_str(), "rt");
+	if (!file)
+	{
+		Debug::log("Location: read_config(\n"
+			"const std::string & filename,\n"
+			"unsigned int& out_shadowmapWidth,\n"
+			"unsigned int& out_windowWidth,\n"
+			"unsigned int& out_windowHeight,\n"
+			"unsigned int& out_windowFullscreen\n"
+			")\n"
+			"Failed to read config file from: " + filename,
+			DEBUG__ERROR_LEVEL__ERROR
+		);
+		return;
+	}
+
+	fscanf_s(file, "shadowmapWidth=%d\n", &out_shadowmapWidth);
+	fscanf_s(file, "windowWidth=%d\n", &out_windowWidth);
+	fscanf_s(file, "windowHeight=%d\n", &out_windowHeight);
+	fscanf_s(file, "windowFullscreen=%d\n", &out_windowFullscreen);
+	fscanf_s(file, "vSync=%d\n", &out_vSync);
+	fscanf_s(file, "treeCount=%d\n", &out_treeCount);
+	fscanf_s(file, "grassCount=%d", &out_grassCount);
+
+	fclose(file);
+}
 
 int main(int argc, const char** argv)
 {
+
+	unsigned int windowWidth = 1024;
+	unsigned int windowHeight = 768;
+	unsigned int windowFullscreen = 0;
+	unsigned int shadowmapWidth = 1024;
+	unsigned int vSync = 0;
+
+	unsigned int instanceCount_trees = 1000;
+	unsigned int instanceCount_grass = 100000;
+
+	read_config("res/config.txt", shadowmapWidth, windowWidth, windowHeight, windowFullscreen, vSync, instanceCount_trees, instanceCount_grass);
 	
-	Program program("FunGINe engine demo", 1920, 1080, false);
+	Program program("FunGINe engine demo", windowWidth, windowHeight, windowFullscreen == 0 ? false : true, vSync);
 
 	// Create perspective projection matrix
-	float aspectRatio = (float)(Window::get_width()) / (float)(Window::get_height());
+	const float aspectRatio = (float)(Window::get_width()) / (float)(Window::get_height());
+	const float fov = mml::to_radians(70.0f);
 	// Create camera entity
-	Entity* cameraEntity = commonEntityFactory::create_entity__Camera({ 0,3,8 }, { {0,1,0}, 0 });
-	cameraEntity->getComponent<Camera>()->setPerspectiveProjection(1.22173048f, aspectRatio, 0.1f, 1000.0f);
-	CameraController camController(cameraEntity);
+	const float camStartPitch = mml::to_radians(-17.0f);
+	const float camStartYaw = mml::to_radians(-135.0f);
+	mml::Quaternion camStartRot = mml::Quaternion({ 0,1,0 }, camStartYaw) * mml::Quaternion({ 1,0,0 }, camStartPitch);
+	Entity* cameraEntity = commonEntityFactory::create_entity__Camera({ 35,145,35 }, camStartRot);
+	cameraEntity->getComponent<Camera>()->setPerspectiveProjection(fov, aspectRatio, 0.1f, 1000.0f);
+	CameraController camController(cameraEntity, camStartPitch, camStartYaw);
 
 	// Create directional light entity
-	unsigned int shadowmapWidth = 1024;
-	unsigned int shadowmapHeight = 1024;
-	float dirLight_pitch = 1.57079633f * 0.5f;
+	float dirLight_pitch = mml::to_radians(45.0f);
 	float dirLight_yaw = 0.0f;
 	mml::Quaternion dirLightRotation = mml::Quaternion({ 0,1,0 }, dirLight_yaw) * mml::Quaternion({ 1,0,0 }, dirLight_pitch);
 
 	Entity* dirLightEntity = commonEntityFactory::create_entity__DirectionalLight(
 		dirLightRotation, { 1,1,1 }, { 0,0,0 },
-		shadowmapWidth, shadowmapHeight
+		shadowmapWidth, shadowmapWidth
 	);
-
-
-	// Texture creation
-	ImageData* imgDat = ImageData::load_image("res/testTexture.png");
-	Texture* texture = Texture::create_texture(imgDat, imgDat->getWidth(), imgDat->getHeight());
 
 	// Load all terrain textures
 	ImageData* imgDat_blendmap = ImageData::load_image("res/IslandsBlendmap.png");
@@ -192,7 +239,6 @@ int main(int argc, const char** argv)
 	std::vector<Texture*> treeMeshes_textures;
 	std::vector<std::shared_ptr<Material>> treeMeshes_materials;
 
-	const unsigned int treeInstanceCount = 1000;
 	modelLoading::load_model(
 		"res/PalmTree_straight.fbx",
 		treeMeshes, treeMeshes_textures, treeMeshes_materials,
@@ -201,7 +247,7 @@ int main(int argc, const char** argv)
 		modelLoading::ModelLoading_PostProcessFlags::FlipUVs |
 		modelLoading::ModelLoading_PostProcessFlags::CalcTangentSpace,
 		true,
-		treeInstanceCount
+		instanceCount_trees
 	);
 
 	// Load grass
@@ -209,7 +255,6 @@ int main(int argc, const char** argv)
 	std::vector<Texture*> grassMeshes_textures;
 	std::vector<std::shared_ptr<Material>> grassMeshes_materials;
 
-	const unsigned int grassInstanceCount = 50000;
 	modelLoading::load_model(
 		"res/Grass.fbx",
 		grassMeshes, grassMeshes_textures, grassMeshes_materials,
@@ -217,7 +262,7 @@ int main(int argc, const char** argv)
 		modelLoading::ModelLoading_PostProcessFlags::Triangulate |
 		modelLoading::ModelLoading_PostProcessFlags::FlipUVs,
 		true,
-		grassInstanceCount
+		instanceCount_grass
 	);
 
 
@@ -253,7 +298,7 @@ int main(int argc, const char** argv)
 
 	//treeMeshes[0]->enableShadows(true);
 
-	for (int i = 0; i < treeInstanceCount; ++i)
+	for (int i = 0; i < instanceCount_trees; ++i)
 	{
 		Entity* treeEntity = new Entity;
 		float treeScale = 0.001f;
@@ -277,7 +322,7 @@ int main(int argc, const char** argv)
 	grassMaterial->setShaderUniform_Float({ "m_windMultiplier", ShaderDataType::Float, 0.001f });
 	grassMeshes[0]->enableShadows(false); // Don't render foliage to shadowmap
 
-	for (int i = 0; i < grassInstanceCount; ++i)
+	for (int i = 0; i < instanceCount_grass; ++i)
 	{
 		Entity* grassEntity = new Entity;
 		float grassScale = 0.025f;

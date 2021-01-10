@@ -11,6 +11,7 @@ uniform int isTwoSided;
 
 uniform vec3 directionalLight_ambientColor;
 uniform vec3 directionalLight_color;
+const float shadowStrength = 0.4;
 
 struct ShadowProperties
 {
@@ -87,7 +88,7 @@ float calcShadow(float bias)
 void main(void)
 {
 	float bias = 0.005f; // max(0.025 * 1.0 - dotp_normToLight, 0.005);
-	float shadow = calcShadow(bias);
+	float shadow = min(calcShadow(bias), shadowStrength);
 
 	//float diffuseFactor = max(dot(toLightVec, vec3(0,1,0)) - shadow, 0.0);
 	float diffuseFactor = var_diffuseFactor;

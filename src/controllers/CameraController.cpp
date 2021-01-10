@@ -11,9 +11,11 @@ using namespace entities;
 using namespace core;
 
 
-CameraController::CameraController(Entity* cameraToControl)
+CameraController::CameraController(Entity* cameraToControl, float camStartPitch, float camStartYaw)
 {
 	_cameraEntity = cameraToControl;
+	_pitch = camStartPitch;
+	_yaw = camStartYaw;
 }
 
 void CameraController::update()

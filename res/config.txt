@@ -1,0 +1,7 @@
+shadowmapWidth=2048
+windowWidth=1366
+windowHeight=768
+windowFullscreen=0
+vSync=0
+treeCount=2000
+grassCount=150000
