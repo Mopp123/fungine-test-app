@@ -1,3 +1,5 @@
+#include "TestProgram.h"
+#ifdef MAIN_FUNC__NatureRenderingTest
 
 #include <GLEW/glew.h>
 #include <GLFW/glfw3.h>
@@ -14,6 +16,7 @@
 #include "graphics/Framebuffer.h"
 
 #include "components/rendering/Mesh.h"
+#include "components/guiComponents/GUIImage.h"
 #include "components/rendering/Material.h"
 #include "components/common/Transform.h"
 #include "components/rendering/Camera.h"
@@ -21,6 +24,7 @@
 #include "components/rendering/renderers/Renderer.h"
 #include "components/rendering/renderers/TerrainRenderer.h"
 #include "components/rendering/renderers/NatureRenderer.h"
+#include "components/rendering/renderers/GUIRenderer.h"
 
 #include "utils/modelLoading/ModelLoading.h"
 
@@ -145,7 +149,7 @@ void read_config(
 
 int main(int argc, const char** argv)
 {
-
+	
 	unsigned int windowWidth = 1024;
 	unsigned int windowHeight = 768;
 	unsigned int windowFullscreen = 0;
@@ -179,6 +183,11 @@ int main(int argc, const char** argv)
 		dirLightRotation, { 1,1,1 }, { 0,0,0 },
 		shadowmapWidth, shadowmapWidth
 	);
+
+	// Load test texture
+	ImageData* imgDat_testTexture = ImageData::load_image("res/textures/TestTexture.png");
+	Texture* texture_test = Texture::create_texture(imgDat_testTexture);
+
 
 	// Load all terrain textures
 	ImageData* imgDat_blendmap = ImageData::load_image("res/IslandsBlendmap.png");
@@ -270,7 +279,7 @@ int main(int argc, const char** argv)
 	std::shared_ptr<TerrainRenderer> terrainRenderer = std::make_shared<TerrainRenderer>();
 	std::shared_ptr<NatureRenderer> natureRenderer = std::make_shared<NatureRenderer>();
 
-	std::shared_ptr<Renderer> meshRenderer = std::make_shared<Renderer>();
+	//std::shared_ptr<Renderer> meshRenderer = std::make_shared<Renderer>();
 
 	// Generate terrain entity
 	ImageData* heightmapImage = ImageData::load_image("res/heightmapTest.png");
@@ -292,19 +301,21 @@ int main(int argc, const char** argv)
 	std::shared_ptr<Material> treeMaterial = treeMeshes_materials[0];
 	treeMaterial->setShader(treeShader);
 	treeMaterial->setShadowShader(treeShadowShader);
-	
+
 	treeMaterial->setShaderUniform_Float({ "m_windMultiplier", ShaderDataType::Float, 0.000002f });
 	
-
-	//treeMeshes[0]->enableShadows(true);
-
+	treeMeshes[0]->enableShadows(true);
+	std::vector<Entity*> testTrees;
 	for (int i = 0; i < instanceCount_trees; ++i)
 	{
-		Entity* treeEntity = new Entity;
+		Entity* treeEntity = new Entity(true);
+		testTrees.push_back(treeEntity);
+		
+
 		float treeScale = 0.001f;
 
 		float randomYaw = (float)(std::rand() % 100) * 0.01f * 2 - 1.0f;
-		std::shared_ptr<Transform> component_transform = std::make_shared<Transform>(mml::Vector3(0,0,0), mml::Quaternion({ 0,1,0 }, randomYaw), mml::Vector3(treeScale, treeScale, treeScale), true);
+		std::shared_ptr<Transform> component_transform = std::make_shared<Transform>(mml::Vector3(0,0,0), mml::Quaternion({ 0,1,0 }, randomYaw), mml::Vector3(treeScale, treeScale, treeScale));
 		treeEntity->addComponent(component_transform);
 
 		treeEntity->addComponent(treeMaterial);
@@ -322,12 +333,14 @@ int main(int argc, const char** argv)
 	grassMaterial->setShaderUniform_Float({ "m_windMultiplier", ShaderDataType::Float, 0.001f });
 	grassMeshes[0]->enableShadows(false); // Don't render foliage to shadowmap
 
+
+
 	for (int i = 0; i < instanceCount_grass; ++i)
 	{
-		Entity* grassEntity = new Entity;
+		Entity* grassEntity = new Entity(true);
 		float grassScale = 0.025f;
 		float randomYaw = (float)(std::rand() % 100) * 0.01f * 2 - 1.0f;
-		std::shared_ptr<Transform> component_transform = std::make_shared<Transform>(mml::Vector3(0, 0, 0), mml::Quaternion({ 0,1,0 }, randomYaw), mml::Vector3(grassScale, grassScale, grassScale), true);
+		std::shared_ptr<Transform> component_transform = std::make_shared<Transform>(mml::Vector3(0, 0, 0), mml::Quaternion({ 0,1,0 }, randomYaw), mml::Vector3(grassScale, grassScale, grassScale));
 		grassEntity->addComponent(component_transform);
 
 		grassEntity->addComponent(grassMaterial);
@@ -352,14 +365,58 @@ int main(int argc, const char** argv)
 	std::shared_ptr<Mesh> shadowmapDebugMesh = shadowmapDebugEntity->getComponent<Mesh>();
 	
 	// create shader to draw shadow map debugging..
-	ShaderStage* guiVertexShader = ShaderStage::create_shader_stage("res/shaders/guiShaders/GuiVertexShader.shader", ShaderStageType::VertexShader);
-	ShaderStage* guiFragmentShader = ShaderStage::create_shader_stage("res/shaders/guiShaders/GuiFragmentShader.shader", ShaderStageType::PixelShader);
+	ShaderStage* guiVertexShader = ShaderStage::create_shader_stage("res/shaders/guiShaders/GuiVertexShader_TEST.shader", ShaderStageType::VertexShader);
+	ShaderStage* guiFragmentShader = ShaderStage::create_shader_stage("res/shaders/guiShaders/GuiFragmentShader_TEST.shader", ShaderStageType::PixelShader);
 	ShaderProgram* guiShader = ShaderProgram::create_shader_program("GuiShader", guiVertexShader, guiFragmentShader);
 
 	const Texture* shadowmapTexture = dirLightEntity->getComponent<DirectionalLight>()->getShadowCaster().getShadowmapTexture();
 
+
+	// Test GUI component rendering
+	/*float guiImgScale = 0.0075f;
+	std::shared_ptr<GUIRenderer> guiRenderer = std::make_shared<GUIRenderer>();
+	for (int y = 0; y < 100; y++)
+	{
+		for (int x = 0; x < 100; x++)
+		{
+			Entity* guiEntity = new Entity;
+			float xPos = (-1.0f + guiImgScale * 2) + (guiImgScale * 2 * x);
+			float yPos = (1.0f - guiImgScale * 2) - (guiImgScale * 2 * y);
+
+			std::shared_ptr<Transform> guiTransform = std::make_shared<Transform>(
+				mml::Vector3(xPos, yPos, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(guiImgScale, guiImgScale, 1.0f));
+			std::shared_ptr<GUIImage> guiImage = std::make_shared<GUIImage>(texture_test);
+			guiEntity->addComponent(guiTransform);
+			guiEntity->addComponent(guiRenderer);
+			guiEntity->addComponent(guiImage);
+		}
+	}*/
+	
+
 	while (!program.isCloseRequested())
 	{
+		// Test batched entity transform updating..
+		if (InputHandler::is_key_down(FUNGINE_KEY_ENTER))
+		{
+			//int randIndex = std::rand() % vegetationEntities.size() - 1;
+			Entity* e = vegetationEntities[0];
+			
+				std::shared_ptr<BatchInstanceData> b = e->getComponent<BatchInstanceData>();
+				if (b)
+				{
+					std::shared_ptr<Transform> t = e->getComponent<Transform>();
+					float x = t->getPosition().x;
+					float y = t->getPosition().y + 10.0f * Time::get_delta_time();
+					float z = t->getPosition().z;
+					printf("y = %f\n", y);
+
+					//float y = terrain->getHeightAt(x, z) + std::abs(std::sin(glfwGetTime()) * 60.0f);
+					t->setPosition({ x,y,z });
+
+					b->update();
+			}
+		}
+
 		if (InputHandler::is_key_down(FUNGINE_KEY_ESCAPE))
 			program.get_window()->close();
 		
@@ -410,3 +467,4 @@ int main(int argc, const char** argv)
 
 	return 0;
 }
+#endif
