@@ -17,6 +17,7 @@
 
 #include "components/rendering/Mesh.h"
 #include "components/guiComponents/GUIImage.h"
+#include "components/guiComponents/GUIText.h"
 #include "components/rendering/Material.h"
 #include "components/common/Transform.h"
 #include "components/rendering/Camera.h"
@@ -25,6 +26,7 @@
 #include "components/rendering/renderers/TerrainRenderer.h"
 #include "components/rendering/renderers/NatureRenderer.h"
 #include "components/rendering/renderers/GUIRenderer.h"
+#include "components/rendering/renderers/GUITextRenderer.h"
 
 #include "utils/modelLoading/ModelLoading.h"
 
@@ -33,7 +35,11 @@
 #include "entities/commonEntitiesLib/CommonEntityFactory.h"
 #include "entities/commonEntitiesLib/shapes3D/CommonShapes.h"
 
+#include "utils/fontUtils/Font.h"
+
 #include "controllers/CameraController.h"
+
+#include "entities/guiEntities/Panel.h"
 
 #include <stdio.h>
 #include <cmath>
@@ -183,11 +189,6 @@ int main(int argc, const char** argv)
 		dirLightRotation, { 1,1,1 }, { 0,0,0 },
 		shadowmapWidth, shadowmapWidth
 	);
-
-	// Load test texture
-	ImageData* imgDat_testTexture = ImageData::load_image("res/textures/TestTexture.png");
-	Texture* texture_test = Texture::create_texture(imgDat_testTexture);
-
 
 	// Load all terrain textures
 	ImageData* imgDat_blendmap = ImageData::load_image("res/IslandsBlendmap.png");
@@ -372,51 +373,87 @@ int main(int argc, const char** argv)
 	const Texture* shadowmapTexture = dirLightEntity->getComponent<DirectionalLight>()->getShadowCaster().getShadowmapTexture();
 
 
-	// Test GUI component rendering
-	/*float guiImgScale = 0.0075f;
-	std::shared_ptr<GUIRenderer> guiRenderer = std::make_shared<GUIRenderer>();
-	for (int y = 0; y < 100; y++)
-	{
-		for (int x = 0; x < 100; x++)
-		{
-			Entity* guiEntity = new Entity;
-			float xPos = (-1.0f + guiImgScale * 2) + (guiImgScale * 2 * x);
-			float yPos = (1.0f - guiImgScale * 2) - (guiImgScale * 2 * y);
 
-			std::shared_ptr<Transform> guiTransform = std::make_shared<Transform>(
-				mml::Vector3(xPos, yPos, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(guiImgScale, guiImgScale, 1.0f));
-			std::shared_ptr<GUIImage> guiImage = std::make_shared<GUIImage>(texture_test);
-			guiEntity->addComponent(guiTransform);
-			guiEntity->addComponent(guiRenderer);
-			guiEntity->addComponent(guiImage);
-		}
-	}*/
+	// Test GUI component rendering
+	std::shared_ptr<GUIRenderer> guiRenderer = std::make_shared<GUIRenderer>();
+	std::shared_ptr<GUITextRenderer> textRenderer = std::make_shared<GUITextRenderer>();
+
+	/*
+	Entity* guiEntity = new Entity;
 	
+	std::shared_ptr<Transform> guiTransform = std::make_shared<Transform>(
+		mml::Vector3(1024 - 128 - 10, 768 * 0.5f, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(128, 256, 1.0f));
+	
+	std::shared_ptr<GUIImage> guiImage = std::make_shared<GUIImage>(1, true);
+	
+	guiEntity->addComponent(guiTransform);
+	guiEntity->addComponent(guiRenderer);
+	guiEntity->addComponent(guiImage);
+	*/
+
+	std::vector<Entity*> guiPanelEntity = guiEntityFactory::create_panel_entity(512, 256, 256, 512, "Testing panel",0,32);
+	guiPanelEntity[1]->addComponent(guiRenderer);
+	guiPanelEntity[2]->addComponent(textRenderer);
+
+	// Test text rendering
+	
+	Entity* textEntity = new Entity;
+	std::shared_ptr<Transform> textTransform = std::make_shared<Transform>(
+		mml::Vector3(0, 512, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(1, 1, 1));
+	std::shared_ptr<GUIText> guiText = std::make_shared<GUIText>(
+		"Testing text rendering asd123... a very lengthy text string here."
+	);
+	textEntity->addComponent(textTransform);
+	textEntity->addComponent(textRenderer);
+	textEntity->addComponent(guiText);
+	
+
+	// Make different looking font for FPS text
+	Font* font_fpsText = new Font("res/default/fonts/TestFont.ttf", 10, { 1,1,0,1 });
+
+	Entity* FPSTextEntity = new Entity;
+	std::shared_ptr<Transform> FPSTextTransform = std::make_shared<Transform>(
+		mml::Vector3(0, 0, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(1.0f, 1.0f, 1.0f));
+	std::shared_ptr<GUIText> FPSText = std::make_shared<GUIText>("FPS: ", font_fpsText);
+	FPSTextEntity->addComponent(FPSTextTransform);
+	FPSTextEntity->addComponent(textRenderer);
+	FPSTextEntity->addComponent(FPSText);
 
 	while (!program.isCloseRequested())
 	{
-		// Test batched entity transform updating..
-		if (InputHandler::is_key_down(FUNGINE_KEY_ENTER))
+		/*
+		std::vector<std::shared_ptr<BatchInstanceData>> panelInstancedDatas1 = guiPanelEntity[1]->getComponents<BatchInstanceData>();
+		std::vector<std::shared_ptr<BatchInstanceData>> panelInstancedDatas2 = guiPanelEntity[2]->getComponents<BatchInstanceData>();
+
+		if (!panelInstancedDatas1.empty())
+			panelInstancedDatas1[0]->update();
+
+		if (!panelInstancedDatas2.empty())
+			panelInstancedDatas2[0]->update();
+		*/
+
+		FPSText->setText("FPS: " + std::to_string(Time::get_fps()));
+
+		// Test batched entity dynamic deleting
+		if (InputHandler::is_key_down(FUNGINE_KEY_E) && !vegetationEntities.empty())
 		{
-			//int randIndex = std::rand() % vegetationEntities.size() - 1;
-			Entity* e = vegetationEntities[0];
-			
-				std::shared_ptr<BatchInstanceData> b = e->getComponent<BatchInstanceData>();
-				if (b)
+			int randIndex = std::rand() % vegetationEntities.size();
+			if (randIndex >= 0 && randIndex < vegetationEntities.size())
+			{
+				Entity* e = vegetationEntities[randIndex];
+				if (e)
 				{
-					std::shared_ptr<Transform> t = e->getComponent<Transform>();
-					float x = t->getPosition().x;
-					float y = t->getPosition().y + 10.0f * Time::get_delta_time();
-					float z = t->getPosition().z;
-					printf("y = %f\n", y);
-
-					//float y = terrain->getHeightAt(x, z) + std::abs(std::sin(glfwGetTime()) * 60.0f);
-					t->setPosition({ x,y,z });
-
-					b->update();
+					std::shared_ptr<BatchInstanceData> b = e->getComponent<BatchInstanceData>();
+					if (b)
+					{
+						natureRenderer->removeFromRenderList(e);
+						vegetationEntities.erase(vegetationEntities.begin() + randIndex);
+						delete e;
+					}
+				}
 			}
 		}
-
+		
 		if (InputHandler::is_key_down(FUNGINE_KEY_ESCAPE))
 			program.get_window()->close();
 		
