@@ -11,7 +11,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include_directories(
     "./src"
-    "./fungine/include"
+    "./fungine/src"
     "./fungine/glfw/include"
     "./fungine/glew/include"
     "./fungine/freetype/include"
@@ -25,7 +25,11 @@ file(
     "${PROJECT_SOURCE_DIR}/src/controllers/CameraController.cpp"
 )
 
-
+# This is to be able to call some opengl funcs directly for
+# shadowmap debugging purposes -> not required if last lines
+# of the main loop are commented out
+find_package(OpenGL REQUIRED)
 
 add_executable(${TARGET_NAME} ${SOURCE_FILES})
+target_link_libraries(${TARGET_NAME} ${OPENGL_LIBRARIES})
 target_link_libraries(${TARGET_NAME} "${PROJECT_SOURCE_DIR}/fungine/build/libfungine-engine.so")

@@ -1,38 +1,7 @@
-#include "TestProgram.h"
-#ifdef MAIN_FUNC__NatureRenderingTest
-
-//#include <GL/glew.h>
-//#include <GLFW/glfw3.h>
-
 #include "Fungine.hpp"
-
 #include "controllers/CameraController.h"
-
-
 #include <stdio.h>
 #include <cmath>
-
-/*
-	* Uses "Fungine" as static lib
-		(*but fungine uses assimp as dll so we need to have that..)
-*/
-
-
-
-/*
-	"Comment tags"( all of them starts with '*->' ):
-
-	*->TEMP = very temporary testing thing that should be quickly removed/changed to more final form.
-	*->TODO = ..to doo
-
-	NEXT UP:
-
-		* remove framebuffer's depth texture attachment's border coloring hack!
-		* figure out why dir light view matrix is inverted..
-		* improve rendering system (shadowmaprenderpass things..)
-		* shadowmap pcf
-		* change constant material specular properties from shaders to uniforms
-*/
 
 using namespace fungine;
 using namespace core;
@@ -140,7 +109,6 @@ void read_config(
 
 int main(int argc, const char** argv)
 {
-
 	unsigned int windowWidth = 1024;
 	unsigned int windowHeight = 768;
 	unsigned int windowFullscreen = 0;
@@ -265,8 +233,6 @@ int main(int argc, const char** argv)
 	std::shared_ptr<TerrainRenderer> terrainRenderer = std::make_shared<TerrainRenderer>();
 	std::shared_ptr<NatureRenderer> natureRenderer = std::make_shared<NatureRenderer>();
 
-	//std::shared_ptr<Renderer> meshRenderer = std::make_shared<Renderer>();
-
 	// Generate terrain entity
 	ImageData* heightmapImage = ImageData::load_image("res/heightmapTest.png");
 	Terrain* terrain = new Terrain(
@@ -319,8 +285,6 @@ int main(int argc, const char** argv)
 	grassMaterial->setShaderUniform_Float({ "m_windMultiplier", ShaderDataType::Float, 0.001f });
 	grassMeshes[0]->enableShadows(false); // Don't render foliage to shadowmap
 
-
-
 	for (int i = 0; i < instanceCount_grass; ++i)
 	{
 		Entity* grassEntity = new Entity(true);
@@ -357,10 +321,8 @@ int main(int argc, const char** argv)
 
 	const Texture* shadowmapTexture = dirLightEntity->getComponent<DirectionalLight>()->getShadowCaster().getShadowmapTexture();
 
-
-
 	// Test GUI component rendering
-	// std::shared_ptr<GUIRenderer> guiRenderer = std::make_shared<GUIRenderer>();
+	//std::shared_ptr<GUIRenderer> guiRenderer = std::make_shared<GUIRenderer>();
 	std::shared_ptr<GUITextRenderer> textRenderer = std::make_shared<GUITextRenderer>();
 
 	//std::vector<Entity*> guiPanelEntity = guiEntityFactory::create_panel_entity(512, 256, 256, 512, "Testing panel",0,32);
@@ -378,7 +340,6 @@ int main(int argc, const char** argv)
 	//textEntity->addComponent(textTransform);
 	//textEntity->addComponent(textRenderer);
 	//textEntity->addComponent(guiText);
-
 
 	// Make different looking font for FPS text
 	Font* font_fpsText = new Font("res/default/fonts/TestFont.ttf", 10, { 1,1,0,1 });
@@ -462,8 +423,9 @@ int main(int argc, const char** argv)
 		program.update();
 		Graphics::render();
 
-		// render shadow map into quad on screen for debugginh purposes..
-		/*rendererCommands->bindShader(guiShader);
+		// render shadowmap into quad on screen for debugginh purposes..
+                /*
+		rendererCommands->bindShader(guiShader);
 		guiShader->setUniform("transformationMatrix", shadowmapDebugTransform->getTransformationMatrix());
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, shadowmapTexture->getID());
@@ -471,9 +433,9 @@ int main(int argc, const char** argv)
 		rendererCommands->drawIndices(shadowmapDebugMesh.get());
 		glBindTexture(GL_TEXTURE_2D, 0);
 		rendererCommands->unbindMesh(shadowmapDebugMesh.get());
-		rendererCommands->unbindShader();*/
+		rendererCommands->unbindShader();
+                */
 	}
 
 	return 0;
 }
-#endif
