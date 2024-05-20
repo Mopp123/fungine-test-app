@@ -12,6 +12,3 @@ build: $(wildcard ./src/*) CMakeLists.txt
 	cp ./fungine/freetype/objs/.libs/libfreetype.so.6.20.1 $(build_dir)
 	cp ./fungine/assimp/build/bin/libassimp.so.5 $(build_dir)
 	cp ./fungine/build/libfungine-engine.so $(build_dir)
-	# For now also copy the res into build to just get that running quickly..
-	cp -r ./res $(build_dir)
-
