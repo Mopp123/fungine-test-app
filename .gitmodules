@@ -1,0 +1,3 @@
+[submodule "fungine"]
+	path = fungine
+	url = git@github.com:Mopp123/fungine.git

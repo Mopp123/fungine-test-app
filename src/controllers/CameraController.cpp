@@ -3,6 +3,7 @@
 #include "components/common/Transform.h"
 #include "core/window/input/InputHandler.h"
 #include "utils/Time.h"
+#include <cmath>
 
 
 using namespace fungine;
@@ -26,17 +27,17 @@ void CameraController::update()
 	float forward = 0.0f;
 	float sideways = 0.0f;
 	float up = 0.0f;
-	
+
 	if (InputHandler::is_key_down(FUNGINE_KEY_W)) forward = -speed;
 	if (InputHandler::is_key_down(FUNGINE_KEY_S)) forward = speed;
-	
+
 	if (InputHandler::is_key_down(FUNGINE_KEY_A)) sideways = -speed;
 	if (InputHandler::is_key_down(FUNGINE_KEY_D)) sideways = speed;
 
 	if (InputHandler::is_key_down(FUNGINE_KEY_SPACE)) up = speed;
 	if (InputHandler::is_key_down(FUNGINE_KEY_LEFT_CTRL)) up = -speed;
 
-	
+
 	Transform* t = _cameraEntity->getComponent<Transform>().get();
 	mml::Vector3 pos = t->getPosition() + t->forward() * forward + t->up() * up + t->right() * sideways;
 	t->setPosition(pos);
@@ -53,5 +54,5 @@ void CameraController::update()
 		mml::Quaternion rot = mml::Quaternion({ 0,1,0 }, _yaw) * mml::Quaternion({ 1,0,0 }, _pitch);
 		t->setRotation(rot);
 	}
-	
+
 }

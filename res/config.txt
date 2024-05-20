@@ -4,4 +4,4 @@ windowHeight=768
 windowFullscreen=0
 vSync=0
 treeCount=2000
-grassCount=100000
+grassCount=50000

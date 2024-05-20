@@ -1,45 +1,13 @@
 #include "TestProgram.h"
 #ifdef MAIN_FUNC__NatureRenderingTest
 
-#include <GLEW/glew.h>
-#include <GLFW/glfw3.h>
-#include "core/Program.h"
-#include "utils/myMathLib/MyMathLib.h"
-#include "core/Common.h"
-#include "core/Debug.h"
-#include "utils/Time.h"
+//#include <GL/glew.h>
+//#include <GLFW/glfw3.h>
 
-#include "graphics/Buffers.h"
-#include "graphics/shaders/ShaderStage.h"
-#include "graphics/shaders/ShaderUniforms.h"
-#include "graphics/Texture.h"
-#include "graphics/Framebuffer.h"
-
-#include "components/rendering/Mesh.h"
-#include "components/guiComponents/GUIImage.h"
-#include "components/guiComponents/GUIText.h"
-#include "components/rendering/Material.h"
-#include "components/common/Transform.h"
-#include "components/rendering/Camera.h"
-#include "components/rendering/lighting/Lights.h"
-#include "components/rendering/renderers/Renderer.h"
-#include "components/rendering/renderers/TerrainRenderer.h"
-#include "components/rendering/renderers/NatureRenderer.h"
-#include "components/rendering/renderers/GUIRenderer.h"
-#include "components/rendering/renderers/GUITextRenderer.h"
-
-#include "utils/modelLoading/ModelLoading.h"
-
-#include "entities/Entity.h"
-#include "entities/terrain/Terrain.h"
-#include "entities/commonEntitiesLib/CommonEntityFactory.h"
-#include "entities/commonEntitiesLib/shapes3D/CommonShapes.h"
-
-#include "utils/fontUtils/Font.h"
+#include "Fungine.hpp"
 
 #include "controllers/CameraController.h"
 
-#include "entities/guiEntities/Panel.h"
 
 #include <stdio.h>
 #include <cmath>
@@ -56,7 +24,7 @@
 
 	*->TEMP = very temporary testing thing that should be quickly removed/changed to more final form.
 	*->TODO = ..to doo
-	
+
 	NEXT UP:
 
 		* remove framebuffer's depth texture attachment's border coloring hack!
@@ -89,7 +57,7 @@ static bool get_valid_pixel(ImageData* blendmap, unsigned int px, unsigned int p
 static void plant_vegetation(Terrain* terrain, ImageData* blendmap, std::vector<Entity*>& entities)
 {
 	float terrainTileSize = terrain->getTileWidth();
-	
+
 	float scalingFactor = (terrain->getTileWidth() * terrain->getVerticesPerRow()) / blendmap->getWidth();
 	for (Entity* e : entities)
 	{
@@ -114,19 +82,25 @@ static void plant_vegetation(Terrain* terrain, ImageData* blendmap, std::vector<
 
 // just quick way to read config file..
 void read_config(
-	const std::string& filename, 
-	unsigned int& out_shadowmapWidth, 
-	unsigned int& out_windowWidth, 
-	unsigned int& out_windowHeight, 
+	const std::string& filename,
+	unsigned int& out_shadowmapWidth,
+	unsigned int& out_windowWidth,
+	unsigned int& out_windowHeight,
 	unsigned int& out_windowFullscreen,
 	unsigned int& out_vSync,
 
-	unsigned int& out_treeCount, 
+	unsigned int& out_treeCount,
 	unsigned int& out_grassCount
 )
 {
 	FILE* file = nullptr;
+        // quick fix to get running on linux
+        #ifdef _WIN32
 	fopen_s(&file, filename.c_str(), "rt");
+        #elif __linux__
+	file = fopen(filename.c_str(), "rt");
+        #endif
+
 	if (!file)
 	{
 		Debug::log("Location: read_config(\n"
@@ -142,6 +116,8 @@ void read_config(
 		return;
 	}
 
+        // quick fix to get running on linux
+        #ifdef _WIN32
 	fscanf_s(file, "shadowmapWidth=%d\n", &out_shadowmapWidth);
 	fscanf_s(file, "windowWidth=%d\n", &out_windowWidth);
 	fscanf_s(file, "windowHeight=%d\n", &out_windowHeight);
@@ -149,13 +125,22 @@ void read_config(
 	fscanf_s(file, "vSync=%d\n", &out_vSync);
 	fscanf_s(file, "treeCount=%d\n", &out_treeCount);
 	fscanf_s(file, "grassCount=%d", &out_grassCount);
+        #elif __linux__
+	fscanf(file, "shadowmapWidth=%d\n", &out_shadowmapWidth);
+	fscanf(file, "windowWidth=%d\n", &out_windowWidth);
+	fscanf(file, "windowHeight=%d\n", &out_windowHeight);
+	fscanf(file, "windowFullscreen=%d\n", &out_windowFullscreen);
+	fscanf(file, "vSync=%d\n", &out_vSync);
+	fscanf(file, "treeCount=%d\n", &out_treeCount);
+	fscanf(file, "grassCount=%d", &out_grassCount);
+        #endif
 
 	fclose(file);
 }
 
 int main(int argc, const char** argv)
 {
-	
+
 	unsigned int windowWidth = 1024;
 	unsigned int windowHeight = 768;
 	unsigned int windowFullscreen = 0;
@@ -166,7 +151,7 @@ int main(int argc, const char** argv)
 	unsigned int instanceCount_grass = 100000;
 
 	read_config("res/config.txt", shadowmapWidth, windowWidth, windowHeight, windowFullscreen, vSync, instanceCount_trees, instanceCount_grass);
-	
+
 	Program program("FunGINe engine demo", windowWidth, windowHeight, windowFullscreen == 0 ? false : true, vSync);
 
 	// Create perspective projection matrix
@@ -192,7 +177,7 @@ int main(int argc, const char** argv)
 
 	// Load all terrain textures
 	ImageData* imgDat_blendmap = ImageData::load_image("res/IslandsBlendmap.png");
-	
+
 	ImageData* imgDat_dirt_diffuse = ImageData::load_image("res/textures/desert_mud_d.jpg");
 	ImageData* imgDat_dirt_normal = ImageData::load_image("res/textures/desert_mud_n.jpg");
 
@@ -206,7 +191,7 @@ int main(int argc, const char** argv)
 	ImageData* imgDat_cliff_normal = ImageData::load_image("res/textures/jungle_mntn2_n.jpg");
 
 	Texture* texture_blendmap = Texture::create_texture(imgDat_blendmap);
-	
+
 	Texture* texture_dirt_diffuse = Texture::create_texture(imgDat_dirt_diffuse);
 	Texture* texture_dirt_normal = Texture::create_texture(imgDat_dirt_normal);
 
@@ -304,14 +289,14 @@ int main(int argc, const char** argv)
 	treeMaterial->setShadowShader(treeShadowShader);
 
 	treeMaterial->setShaderUniform_Float({ "m_windMultiplier", ShaderDataType::Float, 0.000002f });
-	
+
 	treeMeshes[0]->enableShadows(true);
 	std::vector<Entity*> testTrees;
 	for (int i = 0; i < instanceCount_trees; ++i)
 	{
 		Entity* treeEntity = new Entity(true);
 		testTrees.push_back(treeEntity);
-		
+
 
 		float treeScale = 0.001f;
 
@@ -320,7 +305,7 @@ int main(int argc, const char** argv)
 		treeEntity->addComponent(component_transform);
 
 		treeEntity->addComponent(treeMaterial);
-		
+
 		treeEntity->addComponent(treeMeshes[0]);
 		treeEntity->addComponent(natureRenderer);
 
@@ -351,9 +336,9 @@ int main(int argc, const char** argv)
 
 		vegetationEntities.push_back(grassEntity);
 	}
-	
+
 	plant_vegetation(terrain, imgDat_blendmap, vegetationEntities);
-	
+
 	// get handle to graphics' renderer commands
 	RendererCommands* const rendererCommands = Graphics::get_renderer_commands();
 	rendererCommands->setClearColor({ 0.25f,0.25f,0.25f,1 });
@@ -364,7 +349,7 @@ int main(int argc, const char** argv)
 	Entity* shadowmapDebugEntity = commonEntityFactory::create_entity__Plane({ -1.0f + shadowmapQuadSize, 0.5f,0 }, { {0,1,0}, 0 }, { shadowmapQuadSize,shadowmapQuadSize,shadowmapQuadSize });
 	std::shared_ptr<Transform> shadowmapDebugTransform = shadowmapDebugEntity->getComponent<Transform>();
 	std::shared_ptr<Mesh> shadowmapDebugMesh = shadowmapDebugEntity->getComponent<Mesh>();
-	
+
 	// create shader to draw shadow map debugging..
 	ShaderStage* guiVertexShader = ShaderStage::create_shader_stage("res/shaders/guiShaders/GuiVertexShader_TEST.shader", ShaderStageType::VertexShader);
 	ShaderStage* guiFragmentShader = ShaderStage::create_shader_stage("res/shaders/guiShaders/GuiFragmentShader_TEST.shader", ShaderStageType::PixelShader);
@@ -375,38 +360,25 @@ int main(int argc, const char** argv)
 
 
 	// Test GUI component rendering
-	std::shared_ptr<GUIRenderer> guiRenderer = std::make_shared<GUIRenderer>();
+	// std::shared_ptr<GUIRenderer> guiRenderer = std::make_shared<GUIRenderer>();
 	std::shared_ptr<GUITextRenderer> textRenderer = std::make_shared<GUITextRenderer>();
 
-	/*
-	Entity* guiEntity = new Entity;
-	
-	std::shared_ptr<Transform> guiTransform = std::make_shared<Transform>(
-		mml::Vector3(1024 - 128 - 10, 768 * 0.5f, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(128, 256, 1.0f));
-	
-	std::shared_ptr<GUIImage> guiImage = std::make_shared<GUIImage>(1, true);
-	
-	guiEntity->addComponent(guiTransform);
-	guiEntity->addComponent(guiRenderer);
-	guiEntity->addComponent(guiImage);
-	*/
-
-	std::vector<Entity*> guiPanelEntity = guiEntityFactory::create_panel_entity(512, 256, 256, 512, "Testing panel",0,32);
-	guiPanelEntity[1]->addComponent(guiRenderer);
-	guiPanelEntity[2]->addComponent(textRenderer);
+	//std::vector<Entity*> guiPanelEntity = guiEntityFactory::create_panel_entity(512, 256, 256, 512, "Testing panel",0,32);
+	//guiPanelEntity[1]->addComponent(guiRenderer);
+	//guiPanelEntity[2]->addComponent(textRenderer);
 
 	// Test text rendering
-	
-	Entity* textEntity = new Entity;
-	std::shared_ptr<Transform> textTransform = std::make_shared<Transform>(
-		mml::Vector3(0, 512, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(1, 1, 1));
-	std::shared_ptr<GUIText> guiText = std::make_shared<GUIText>(
-		"Testing text rendering asd123... a very lengthy text string here."
-	);
-	textEntity->addComponent(textTransform);
-	textEntity->addComponent(textRenderer);
-	textEntity->addComponent(guiText);
-	
+
+	//Entity* textEntity = new Entity;
+	//std::shared_ptr<Transform> textTransform = std::make_shared<Transform>(
+	//	mml::Vector3(0, 512, 0), mml::Quaternion({ 0,1,0 }, 0), mml::Vector3(1, 1, 1));
+	//std::shared_ptr<GUIText> guiText = std::make_shared<GUIText>(
+	//	"Testing text rendering asd123... a very lengthy text string here."
+	//);
+	//textEntity->addComponent(textTransform);
+	//textEntity->addComponent(textRenderer);
+	//textEntity->addComponent(guiText);
+
 
 	// Make different looking font for FPS text
 	Font* font_fpsText = new Font("res/default/fonts/TestFont.ttf", 10, { 1,1,0,1 });
@@ -453,23 +425,23 @@ int main(int argc, const char** argv)
 				}
 			}
 		}
-		
+
 		if (InputHandler::is_key_down(FUNGINE_KEY_ESCAPE))
 			program.get_window()->close();
-		
+
 		// To control light direction
 		float dirLightRotSpeed = 0.01f;
-		
+
 		if (InputHandler::is_key_down(FUNGINE_KEY_LEFT)) dirLight_yaw -= dirLightRotSpeed;
 		if (InputHandler::is_key_down(FUNGINE_KEY_RIGHT)) dirLight_yaw += dirLightRotSpeed;
 
 		if (InputHandler::is_key_down(FUNGINE_KEY_UP)) dirLight_pitch += dirLightRotSpeed;
 		if (InputHandler::is_key_down(FUNGINE_KEY_DOWN)) dirLight_pitch -= dirLightRotSpeed;
 
-		
+
 		mml::Quaternion dirLightRot_pitch({ 1,0,0 }, dirLight_pitch);
 		mml::Quaternion dirLightRot_yaw({ 0,1,0 }, dirLight_yaw);
-		
+
 		mml::Quaternion totalDirLightRotation = dirLightRot_yaw * dirLightRot_pitch;
 		totalDirLightRotation.normalize();
 
@@ -483,7 +455,7 @@ int main(int argc, const char** argv)
 		camTransform->update();
 		mml::Vector3 camPos = camTransform->getPosition();
 		camPos.y = terrain->getHeightAt(camPos.x, camPos.z) + 2.0f;
-		
+
 		camTransform->setPosition(camPos);
 		*/
 
