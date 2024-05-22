@@ -25,7 +25,7 @@ file(
     "${PROJECT_SOURCE_DIR}/src/controllers/CameraController.cpp"
 )
 
-# This is to be able to call some opengl funcs directly for
+# This is to be able to call some opengl funcs directly for quick
 # shadowmap debugging purposes -> not required if last lines
 # of the main loop are commented out
 find_package(OpenGL REQUIRED)
