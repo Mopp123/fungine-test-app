@@ -7,7 +7,7 @@ NOTE: This contains the same tab issue as the fungine submodule
 Requires building the fungine submodule first.
 Instructions can be found here https://github.com/Mopp123/fungine
 
-### Unix
+### Linux
 Tested only on Ubuntu 22.04.
 Run `make` or `make build`.
 These creates `build` directory containing the built executable.
