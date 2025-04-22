@@ -19,7 +19,7 @@ To run you also need to have resources directory("res") in the same directory as
 This can be downloaded from here: https://drive.google.com/drive/folders/1nLculCdtXxjtFpnJiZ4N8uuBhs9JgNER?usp=sharing
 Disclaimer: I do not own any other assets than the terrain blendmap and heightmap. Others from https://opengameart.org/
 
-On unix, you need to set your current directory to the executable's dir for
+On Linux, you need to set your current directory to the executable's dir for
 it to be able to load the resources correctly.
 
 Some small settings can be adjusted by modifying the res directory's config.txt.
