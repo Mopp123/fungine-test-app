@@ -3,6 +3,10 @@ For demonstrating usage of my old game engine project.
 NOTE: This contains the same tab issue as the fungine submodule
 (originally written with "tab tabs" instead of spaces)
 
+## Windows build
+Old Windows build can be downloaded from releases. This should also contain all required assets.
+This is very old and can't remember what Windows this was even targeting so might or might not work...
+
 ## Build
 Requires building the fungine submodule first.
 Instructions can be found here https://github.com/Mopp123/fungine
