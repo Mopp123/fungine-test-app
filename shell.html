@@ -1,0 +1,70 @@
+﻿<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Testingtesting</title>
+    <style>
+      body,html
+      {
+      display:block;
+      width:100%;
+      height:100%;
+      margin:0;
+      overflow:hidden;
+      background-color: rgb(28,28,28);
+      }
+    </style>
+  </head>
+  <body>
+    <p id="l" style="font-family: 'Courier New', monospace; font-size:20px; color:rgb(188,188,188); text-align:center; position:relative; top:50%">Loading</p>
+
+    <div class="emscripten_border">
+      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    </div>
+    <script async type="text/javascript" src="assets.js"></script>
+    {{{ SCRIPT }}}
+    <script>
+      let loadingElem = document.getElementById("l");
+      let animState = 0;
+      // Animate loading indicator
+      function onLoading()
+      {
+	let txt = loadingElem.textContent;
+	if (animState < 3)
+	{
+	  txt += ".";
+	  animState += 1;
+	}
+	else
+	{
+	  txt = txt.substr(0, txt.length - 3);
+	  animState = 0;
+	}
+	loadingElem.textContent = txt;
+
+	console.log("Loading...");
+      }
+
+      let interval = setInterval(onLoading, 500);
+
+      var Module = {
+        canvas: (() => {
+          var canvas = document.getElementById('canvas');
+
+          // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+          // application robust, you may want to override this behavior before shipping!
+          // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+          canvas.addEventListener("webglcontextlost", (e) => { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+
+          return canvas;
+        })(),
+	      onRuntimeInitialized: function() {
+	      console.log('module loaded');
+	      loadingElem.remove();
+	      clearInterval(interval);
+        }
+      };
+    </script>
+  </body>
+</html>

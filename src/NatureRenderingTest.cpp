@@ -66,7 +66,7 @@ void read_config(
         // quick fix to get running on linux
         #ifdef _WIN32
 	fopen_s(&file, filename.c_str(), "rt");
-        #elif __linux__
+        #else
 	file = fopen(filename.c_str(), "rt");
         #endif
 
@@ -118,7 +118,7 @@ int main(int argc, const char** argv)
 	unsigned int instanceCount_trees = 1000;
 	unsigned int instanceCount_grass = 100000;
 
-	read_config("res/config.txt", shadowmapWidth, windowWidth, windowHeight, windowFullscreen, vSync, instanceCount_trees, instanceCount_grass);
+	read_config("assets/config.txt", shadowmapWidth, windowWidth, windowHeight, windowFullscreen, vSync, instanceCount_trees, instanceCount_grass);
 
 	Program program("FunGINe engine demo", windowWidth, windowHeight, windowFullscreen == 0 ? false : true, vSync);
 
@@ -144,19 +144,19 @@ int main(int argc, const char** argv)
 	);
 
 	// Load all terrain textures
-	ImageData* imgDat_blendmap = ImageData::load_image("res/IslandsBlendmap.png");
+	ImageData* imgDat_blendmap = ImageData::load_image("assets/IslandsBlendmap.png");
 
-	ImageData* imgDat_dirt_diffuse = ImageData::load_image("res/textures/desert_mud_d.jpg");
-	ImageData* imgDat_dirt_normal = ImageData::load_image("res/textures/desert_mud_n.jpg");
+	ImageData* imgDat_dirt_diffuse = ImageData::load_image("assets/textuassets/desert_mud_d.jpg");
+	ImageData* imgDat_dirt_normal = ImageData::load_image("assets/textuassets/desert_mud_n.jpg");
 
-	ImageData* imgDat_grass1_diffuse = ImageData::load_image("res/textures/moss_ground_d.jpg");
-	ImageData* imgDat_grass2_diffuse = ImageData::load_image("res/textures/moss_plants_d.jpg");
-	ImageData* imgDat_grass_specular = ImageData::load_image("res/textures/moss_plants_s.jpg");
-	ImageData* imgDat_grass_normal = ImageData::load_image("res/textures/moss_plants_n.jpg");
+	ImageData* imgDat_grass1_diffuse = ImageData::load_image("assets/textuassets/moss_ground_d.jpg");
+	ImageData* imgDat_grass2_diffuse = ImageData::load_image("assets/textuassets/moss_plants_d.jpg");
+	ImageData* imgDat_grass_specular = ImageData::load_image("assets/textuassets/moss_plants_s.jpg");
+	ImageData* imgDat_grass_normal = ImageData::load_image("assets/textuassets/moss_plants_n.jpg");
 
-	ImageData* imgDat_cliff_diffuse = ImageData::load_image("res/textures/jungle_mntn2_d.jpg");
-	ImageData* imgDat_cliff_specular = ImageData::load_image("res/textures/jungle_mntn2_h.jpg");
-	ImageData* imgDat_cliff_normal = ImageData::load_image("res/textures/jungle_mntn2_n.jpg");
+	ImageData* imgDat_cliff_diffuse = ImageData::load_image("assets/textuassets/jungle_mntn2_d.jpg");
+	ImageData* imgDat_cliff_specular = ImageData::load_image("assets/textuassets/jungle_mntn2_h.jpg");
+	ImageData* imgDat_cliff_normal = ImageData::load_image("assets/textuassets/jungle_mntn2_n.jpg");
 
 	Texture* texture_blendmap = Texture::create_texture(imgDat_blendmap);
 
@@ -174,27 +174,27 @@ int main(int argc, const char** argv)
 	Texture* texture_cliff_normal = Texture::create_texture(imgDat_cliff_normal);
 
 	// Create shader for terrain rendering
-	ShaderStage* terrainVertexShader = ShaderStage::create_shader_stage("res/shaders/TerrainVertexShader.shader", ShaderStageType::VertexShader);
-	ShaderStage* terrainFragmentShader = ShaderStage::create_shader_stage("res/shaders/TerrainFragmentShader.shader", ShaderStageType::PixelShader);
+	ShaderStage* terrainVertexShader = ShaderStage::create_shader_stage("assets/shaders/TerrainVertexShader.shader", ShaderStageType::VertexShader);
+	ShaderStage* terrainFragmentShader = ShaderStage::create_shader_stage("assets/shaders/TerrainFragmentShader.shader", ShaderStageType::PixelShader);
 	ShaderProgram* terrainShader = ShaderProgram::create_shader_program("TerrainShader", terrainVertexShader, terrainFragmentShader);
 
 	// Create shaders for tree rendering
-	ShaderStage* treeVertexShader = ShaderStage::create_shader_stage("res/shaders/treeShaders/TreeVertexShader.shader", ShaderStageType::VertexShader);
-	ShaderStage* treeFragmentShader = ShaderStage::create_shader_stage("res/shaders/treeShaders/TreeFragmentShader.shader", ShaderStageType::PixelShader);
+	ShaderStage* treeVertexShader = ShaderStage::create_shader_stage("assets/shaders/treeShaders/TreeVertexShader.shader", ShaderStageType::VertexShader);
+	ShaderStage* treeFragmentShader = ShaderStage::create_shader_stage("assets/shaders/treeShaders/TreeFragmentShader.shader", ShaderStageType::PixelShader);
 	ShaderProgram* treeShader = ShaderProgram::create_shader_program("TreeShader", treeVertexShader, treeFragmentShader);
 	// Tree shadow shader
-	ShaderStage* treeShadowVertexShader = ShaderStage::create_shader_stage("res/shaders/treeShaders/TreeShadowVertexShader.shader", ShaderStageType::VertexShader);
-	ShaderStage* treeShadowFragmentShader = ShaderStage::create_shader_stage("res/shaders/treeShaders/TreeShadowFragmentShader.shader", ShaderStageType::PixelShader);
+	ShaderStage* treeShadowVertexShader = ShaderStage::create_shader_stage("assets/shaders/treeShaders/TreeShadowVertexShader.shader", ShaderStageType::VertexShader);
+	ShaderStage* treeShadowFragmentShader = ShaderStage::create_shader_stage("assets/shaders/treeShaders/TreeShadowFragmentShader.shader", ShaderStageType::PixelShader);
 	ShaderProgram* treeShadowShader = ShaderProgram::create_shader_program("TreeShadowShader", treeShadowVertexShader, treeShadowFragmentShader);
 
 	// Create shader for foliage/grass rendering
-	ShaderStage* foliageVertexShader = ShaderStage::create_shader_stage("res/shaders/FoliageVertexShader.shader", ShaderStageType::VertexShader);
-	ShaderStage* foliageFragmentShader = ShaderStage::create_shader_stage("res/shaders/FoliageFragmentShader.shader", ShaderStageType::PixelShader);
+	ShaderStage* foliageVertexShader = ShaderStage::create_shader_stage("assets/shaders/FoliageVertexShader.shader", ShaderStageType::VertexShader);
+	ShaderStage* foliageFragmentShader = ShaderStage::create_shader_stage("assets/shaders/FoliageFragmentShader.shader", ShaderStageType::PixelShader);
 	ShaderProgram* foliageShader = ShaderProgram::create_shader_program("FoliageShader", foliageVertexShader, foliageFragmentShader);
 
 	// Create shader for mesh rendering
-	ShaderStage* meshVertexShader = ShaderStage::create_shader_stage("res/shaders/StaticVertexShader.shader", ShaderStageType::VertexShader);
-	ShaderStage* meshFragmentShader = ShaderStage::create_shader_stage("res/shaders/StaticFragmentShader.shader", ShaderStageType::PixelShader);
+	ShaderStage* meshVertexShader = ShaderStage::create_shader_stage("assets/shaders/StaticVertexShader.shader", ShaderStageType::VertexShader);
+	ShaderStage* meshFragmentShader = ShaderStage::create_shader_stage("assets/shaders/StaticFragmentShader.shader", ShaderStageType::PixelShader);
 	ShaderProgram* meshShader = ShaderProgram::create_shader_program("MeshShader", meshVertexShader, meshFragmentShader);
 
 	// Load palm trees
@@ -203,7 +203,7 @@ int main(int argc, const char** argv)
 	std::vector<std::shared_ptr<Material>> treeMeshes_materials;
 
 	modelLoading::load_model(
-		"res/PalmTree_straight.fbx",
+		"assets/PalmTree_straight.fbx",
 		treeMeshes, treeMeshes_textures, treeMeshes_materials,
 		modelLoading::ModelLoading_PostProcessFlags::JoinIdenticalVertices |
 		modelLoading::ModelLoading_PostProcessFlags::Triangulate |
@@ -219,7 +219,7 @@ int main(int argc, const char** argv)
 	std::vector<std::shared_ptr<Material>> grassMeshes_materials;
 
 	modelLoading::load_model(
-		"res/Grass.fbx",
+		"assets/Grass.fbx",
 		grassMeshes, grassMeshes_textures, grassMeshes_materials,
 		modelLoading::ModelLoading_PostProcessFlags::JoinIdenticalVertices |
 		modelLoading::ModelLoading_PostProcessFlags::Triangulate |
@@ -234,7 +234,7 @@ int main(int argc, const char** argv)
 	std::shared_ptr<NatureRenderer> natureRenderer = std::make_shared<NatureRenderer>();
 
 	// Generate terrain entity
-	ImageData* heightmapImage = ImageData::load_image("res/heightmapTest.png");
+	ImageData* heightmapImage = ImageData::load_image("assets/heightmapTest.png");
 	Terrain* terrain = new Terrain(
 		5.0f, heightmapImage,
 		texture_blendmap,
@@ -315,8 +315,8 @@ int main(int argc, const char** argv)
 	std::shared_ptr<Mesh> shadowmapDebugMesh = shadowmapDebugEntity->getComponent<Mesh>();
 
 	// create shader to draw shadow map debugging..
-	ShaderStage* guiVertexShader = ShaderStage::create_shader_stage("res/shaders/guiShaders/GuiVertexShader_TEST.shader", ShaderStageType::VertexShader);
-	ShaderStage* guiFragmentShader = ShaderStage::create_shader_stage("res/shaders/guiShaders/GuiFragmentShader_TEST.shader", ShaderStageType::PixelShader);
+	ShaderStage* guiVertexShader = ShaderStage::create_shader_stage("assets/shaders/guiShaders/GuiVertexShader_TEST.shader", ShaderStageType::VertexShader);
+	ShaderStage* guiFragmentShader = ShaderStage::create_shader_stage("assets/shaders/guiShaders/GuiFragmentShader_TEST.shader", ShaderStageType::PixelShader);
 	ShaderProgram* guiShader = ShaderProgram::create_shader_program("GuiShader", guiVertexShader, guiFragmentShader);
 
 	const Texture* shadowmapTexture = dirLightEntity->getComponent<DirectionalLight>()->getShadowCaster().getShadowmapTexture();
@@ -342,7 +342,7 @@ int main(int argc, const char** argv)
 	//textEntity->addComponent(guiText);
 
 	// Make different looking font for FPS text
-	Font* font_fpsText = new Font("res/default/fonts/TestFont.ttf", 10, { 1,1,0,1 });
+	Font* font_fpsText = new Font("assets/default/fonts/TestFont.ttf", 10, { 1,1,0,1 });
 
 	Entity* FPSTextEntity = new Entity;
 	std::shared_ptr<Transform> FPSTextTransform = std::make_shared<Transform>(
